@@ -118,9 +118,9 @@
 </div>
 
 <!-- ===== APP ===== -->
-<div id="appScreen">
+  <div id="appScreen">
   <aside class="sidebar">
-    <div class="brand">Product Catalog</div>
+    <div class="brand">Product Catalog<div id="roleLabel" style="font-size:12px;font-weight:normal;color:#9ca3af;margin-top:4px;"></div></div>
     <nav>
       <button class="menu-btn active" data-target="summary">Summary</button>
       <button class="menu-btn" data-target="products">Products</button>
@@ -196,29 +196,49 @@
 </div>
 
 <script>
-  const USERNAME_BENAR = "admin";
-  const PASSWORD_BENAR = "12345";
+   const USERS = {
+    "admin":     { password: "12345",  role: "developer" },
+    "viewer": { password: "v12345", role: "viewer" },
+    "kit": { password: "12345v", role: "viewer" }
+  };
   const LOW_STOCK_DEFAULT = 10;
 
   let products = [];   // normalized rows
   let loaded = false;
+  let currentRole = null;
 
   /* ---------- AUTH ---------- */
-  function login() {
-    const u = document.getElementById("username").value;
+ function login() {
+    const u = document.getElementById("username").value.trim();
     const p = document.getElementById("password").value;
-    if (u === USERNAME_BENAR && p === PASSWORD_BENAR) {
+    const acc = USERS[u];
+    if (acc && acc.password === p) {
+      currentRole = acc.role;
       document.getElementById("loginError").innerText = "";
       document.getElementById("password").value = "";
       document.getElementById("loginScreen").style.display = "none";
       document.getElementById("appScreen").classList.add("aktif");
+      applyRole();
       renderAll();
     } else {
       document.getElementById("loginError").innerText = "Wrong username or password.";
     }
   }
 
+  function applyRole() {
+    const isDev = currentRole === "developer";
+    const uploadBtn = document.querySelector('.menu-btn[data-target="upload"]');
+    uploadBtn.style.display = isDev ? "" : "none";
+    document.getElementById("roleLabel").innerText = "Logged in as: " + currentRole;
+
+    // If a viewer was on the upload page, send them to Summary
+    if (!isDev && document.getElementById("upload").classList.contains("aktif")) {
+      document.querySelector('.menu-btn[data-target="summary"]').click();
+    }
+  }
+
   function logout() {
+    currentRole = null;
     document.getElementById("appScreen").classList.remove("aktif");
     document.getElementById("loginScreen").style.display = "flex";
     document.getElementById("username").value = "";
@@ -287,6 +307,7 @@
   }
 
   function handleFile(e) {
+    if (currentRole !== "developer") return;
     const file = e.target.files[0];
     const status = document.getElementById("uploadStatus");
     if (!file) return;
