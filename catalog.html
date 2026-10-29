@@ -1,0 +1,457 @@
+html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Product Catalog</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, sans-serif; background: #f3f4f6; color: #1f2937; }
+
+  /* ===== LOGIN ===== */
+  #loginScreen {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(#800000, #ff512f);
+  }
+  .login-card {
+    background: #fff; padding: 40px 30px; border-radius: 12px; width: 300px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.2); text-align: center;
+  }
+  .login-card h1 { font-size: 20px; color: #B8860B; margin: 0 0 20px; }
+  .login-card label { display: block; text-align: left; font-size: 14px; margin-bottom: 5px; }
+  .login-card input {
+    width: 100%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc;
+    border-radius: 6px; font-size: 14px;
+  }
+  .login-card button {
+    width: 100%; padding: 10px; background: #B8860B; color: #fff; border: none;
+    border-radius: 6px; font-size: 15px; cursor: pointer;
+  }
+  .login-card button:hover { background: #808080; }
+  #loginError { color: red; font-size: 13px; margin-top: 10px; min-height: 16px; }
+
+  /* ===== APP LAYOUT ===== */
+  #appScreen { display: none; min-height: 100vh; }
+  #appScreen.aktif { display: flex; }
+
+  .sidebar {
+    width: 220px; background: #1f2937; color: #e5e7eb; display: flex;
+    flex-direction: column; flex-shrink: 0;
+  }
+  .sidebar .brand {
+    padding: 20px; font-weight: bold; color: #B8860B; border-bottom: 1px solid #374151;
+  }
+  .sidebar nav { display: flex; flex-direction: column; padding: 10px 0; flex: 1; }
+  .sidebar nav button {
+    background: none; border: none; color: #e5e7eb; text-align: left;
+    padding: 12px 20px; font-size: 15px; cursor: pointer;
+  }
+  .sidebar nav button:hover { background: #374151; }
+  .sidebar nav button.active { background: #B8860B; color: #fff; }
+  .sidebar .logout {
+    margin: 16px; padding: 10px; background: #ef4444; color: #fff; border: none;
+    border-radius: 6px; cursor: pointer;
+  }
+
+  .main { flex: 1; padding: 24px; overflow-x: auto; }
+  .main h2 { margin: 0 0 16px; font-size: 22px; }
+  .section { display: none; }
+  .section.aktif { display: block; }
+
+  /* ===== CARDS / KPI ===== */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi {
+    background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    border-left: 5px solid #B8860B;
+  }
+  .kpi .label { font-size: 13px; color: #6b7280; }
+  .kpi .value { font-size: 22px; font-weight: bold; margin-top: 6px; }
+  .kpi.warn { border-left-color: #ef4444; }
+
+  .panel { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 2px 6px rgba(0,0,0,.08); margin-bottom: 24px; }
+  .panel h3 { margin: 0 0 12px; font-size: 16px; }
+
+  /* Bar chart (CSS only) */
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .bar-row .name { width: 140px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; background: #e5e7eb; border-radius: 4px; height: 14px; }
+  .bar-fill { height: 14px; background: #B8860B; border-radius: 4px; }
+  .bar-row .num { width: 110px; text-align: right; flex-shrink: 0; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; background: #fff; font-size: 14px; }
+  th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+  th { background: #f9fafb; font-weight: 600; }
+  td.num, th.num { text-align: right; }
+  tr.low td { background: #fef2f2; }
+  .search { padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; width: 260px; margin-bottom: 12px; }
+
+  .upload-box {
+    background: #fff; border: 2px dashed #B8860B; border-radius: 10px; padding: 30px; text-align: center;
+  }
+  .upload-box input { margin-top: 10px; }
+  .empty { color: #6b7280; font-style: italic; padding: 20px; text-align: center; }
+  .status { margin-top: 12px; font-size: 14px; color: #065f46; }
+  .status.err { color: #b91c1c; }
+
+  @media (max-width: 700px) {
+    #appScreen { flex-direction: column; }
+    .sidebar { width: 100%; }
+    .sidebar nav { flex-direction: row; overflow-x: auto; }
+    .sidebar nav button { white-space: nowrap; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>INVENTORY LOGIN</h1>
+    <label for="username">Username</label>
+    <input type="text" id="username">
+    <label for="password">Password</label>
+    <input type="password" id="password">
+    <button onclick="login()">Login</button>
+    <div id="loginError"></div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="appScreen">
+  <aside class="sidebar">
+    <div class="brand">Product Catalog</div>
+    <nav>
+      <button class="menu-btn active" data-target="summary">Summary</button>
+      <button class="menu-btn" data-target="products">Products</button>
+      <button class="menu-btn" data-target="stock">Stock</button>
+      <button class="menu-btn" data-target="sales">Sales</button>
+      <button class="menu-btn" data-target="upload">Upload CSV</button>
+    </nav>
+    <button class="logout" onclick="logout()">Logout</button>
+  </aside>
+
+  <main class="main">
+
+    <!-- SUMMARY -->
+    <section class="section aktif" id="summary">
+      <h2>Summary</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="label">Total Products</div><div class="value" id="kTotalProducts">-</div></div>
+        <div class="kpi"><div class="label">Units in Stock</div><div class="value" id="kTotalStock">-</div></div>
+        <div class="kpi"><div class="label">Stock Value</div><div class="value" id="kStockValue">-</div></div>
+        <div class="kpi"><div class="label">Units Sold</div><div class="value" id="kTotalSold">-</div></div>
+        <div class="kpi"><div class="label">Sales Revenue</div><div class="value" id="kRevenue">-</div></div>
+        <div class="kpi warn"><div class="label">Low Stock Items</div><div class="value" id="kLowStock">-</div></div>
+      </div>
+      <div class="panel">
+        <h3>Sales by Category</h3>
+        <div id="categoryChart"><div class="empty">Upload a CSV to see data.</div></div>
+      </div>
+      <div class="panel">
+        <h3>Top 5 Products by Revenue</h3>
+        <div id="topChart"><div class="empty">Upload a CSV to see data.</div></div>
+      </div>
+    </section>
+
+    <!-- PRODUCTS -->
+    <section class="section" id="products">
+      <h2>Products</h2>
+      <input type="text" class="search" id="productSearch" placeholder="Search product, SKU, category..." oninput="renderProducts()">
+      <div id="productTable"><div class="empty">No data loaded.</div></div>
+    </section>
+
+    <!-- STOCK -->
+    <section class="section" id="stock">
+      <h2>Stock</h2>
+      <div class="panel">
+        <p style="margin:0 0 10px;font-size:14px;">Low stock threshold:
+          <input type="number" id="lowThreshold" value="10" min="0" style="width:80px;padding:4px;" oninput="renderStock()">
+          units. Rows in red are at or below this level.</p>
+      </div>
+      <div id="stockTable"><div class="empty">No data loaded.</div></div>
+    </section>
+
+    <!-- SALES -->
+    <section class="section" id="sales">
+      <h2>Sales</h2>
+      <div id="salesTable"><div class="empty">No data loaded.</div></div>
+    </section>
+
+    <!-- UPLOAD -->
+    <section class="section" id="upload">
+      <h2>Upload CSV</h2>
+      <div class="upload-box">
+        <p>Choose your inventory CSV file. The first row must be the header.</p>
+        <p style="font-size:13px;color:#6b7280;">Recognized columns (any of these names work):<br>
+          <b>name</b> (product, item, nama), <b>sku</b> (code, kode), <b>category</b> (kategori),
+          <b>stock</b> (qty, quantity, stok), <b>price</b> (harga, unit price),
+          <b>sold</b> (sales, qty sold, terjual)</p>
+        <input type="file" id="csvFile" accept=".csv" onchange="handleFile(event)">
+        <div id="uploadStatus" class="status"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  const USERNAME_BENAR = "admin";
+  const PASSWORD_BENAR = "12345";
+  const LOW_STOCK_DEFAULT = 10;
+
+  let products = [];   // normalized rows
+  let loaded = false;
+
+  /* ---------- AUTH ---------- */
+  function login() {
+    const u = document.getElementById("username").value;
+    const p = document.getElementById("password").value;
+    if (u === USERNAME_BENAR && p === PASSWORD_BENAR) {
+      document.getElementById("loginError").innerText = "";
+      document.getElementById("password").value = "";
+      document.getElementById("loginScreen").style.display = "none";
+      document.getElementById("appScreen").classList.add("aktif");
+      renderAll();
+    } else {
+      document.getElementById("loginError").innerText = "Wrong username or password.";
+    }
+  }
+
+  function logout() {
+    document.getElementById("appScreen").classList.remove("aktif");
+    document.getElementById("loginScreen").style.display = "flex";
+    document.getElementById("username").value = "";
+    document.getElementById("password").value = "";
+  }
+
+  document.getElementById("password").addEventListener("keydown", e => {
+    if (e.key === "Enter") login();
+  });
+
+  /* ---------- MENU ---------- */
+  document.querySelectorAll(".menu-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".menu-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".section").forEach(s => s.classList.remove("aktif"));
+      btn.classList.add("active");
+      document.getElementById(btn.dataset.target).classList.add("aktif");
+    });
+  });
+
+   /* ---------- CSV ---------- */
+  function detectDelimiter(text) {
+    const firstLine = text.replace(/^\uFEFF/, "").split(/\r?\n/)[0];
+    const semi = (firstLine.match(/;/g) || []).length;
+    const comma = (firstLine.match(/,/g) || []).length;
+    return semi > comma ? ";" : ",";
+  }
+
+  function parseCSV(text, delim) {
+    text = text.replace(/^\uFEFF/, "");
+    const rows = [];
+    let row = [], field = "", inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') inQuotes = false;
+        else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === delim) { row.push(field); field = ""; }
+        else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+        else if (c !== "\r") field += c;
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r => r.some(x => x.trim() !== ""));
+  }
+
+  function findCol(headers, keywords) {
+    const h = headers.map(x => x.toLowerCase().trim());
+    for (const k of keywords) {
+      const idx = h.findIndex(x => x === k || x.includes(k));
+      if (idx !== -1) return idx;
+    }
+    return -1;
+  }
+
+  function toNum(v) {
+    if (v == null) return 0;
+    let s = String(v).trim();
+    if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, "");
+    else if (/^-?\d{1,3}(,\d{3})+$/.test(s)) s = s.replace(/,/g, "");
+    const n = parseFloat(s.replace(/[^0-9.\-]/g, ""));
+    return isNaN(n) ? 0 : n;
+  }
+
+  function handleFile(e) {
+    const file = e.target.files[0];
+    const status = document.getElementById("uploadStatus");
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const rows = parseCSV(ev.target.result, detectDelimiter(ev.target.result));
+        if (rows.length < 2) throw new Error("CSV has no data rows.");
+        const headers = rows[0];
+        const cName = findCol(headers, ["name", "product", "item", "nama"]);
+        const cSku = findCol(headers, ["sku", "code", "kode", "id"]);
+        const cCat = findCol(headers, ["category", "kategori", "type"]);
+        const cStock = findCol(headers, ["stock", "qty", "quantity", "stok", "onhand"]);
+        const cPrice = findCol(headers, ["price", "harga", "unit price"]);
+        const cSold = findCol(headers, ["sold", "sales", "terjual", "sold qty"]);
+
+        if (cName === -1 && cSku === -1) throw new Error("Could not find a name or SKU column.");
+
+        const get = (r, i) => (i === -1 ? "" : (r[i] || "").trim());
+        products = rows.slice(1).map(r => ({
+          name: get(r, cName) || get(r, cSku) || "(unnamed)",
+          sku: get(r, cSku),
+          category: get(r, cCat) || "Uncategorized",
+          stock: toNum(get(r, cStock)),
+          price: toNum(get(r, cPrice)),
+          sold: toNum(get(r, cSold))
+        })).filter(p => p.sku !== "" || p.name !== "(unnamed)");
+        loaded = true;
+        status.className = "status";
+        status.innerText = `Loaded ${products.length} rows from ${file.name}.`;
+        renderAll();
+        document.querySelector('.menu-btn[data-target="summary"]').click();
+      } catch (err) {
+        loaded = false;
+        status.className = "status err";
+        status.innerText = "Error: " + err.message;
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  /* ---------- FORMAT ---------- */
+  const fmtNum = n => Math.round(n).toLocaleString("en-US");
+  const fmtMoney = n => "Rp " + Math.round(n).toLocaleString("id-ID");
+
+  /* ---------- RENDER ---------- */
+  function renderAll() {
+    renderSummary();
+    renderProducts();
+    renderStock();
+    renderSales();
+  }
+
+  function renderSummary() {
+    const threshold = parseFloat(document.getElementById("lowThreshold").value) || LOW_STOCK_DEFAULT;
+    const totalStock = products.reduce((a, p) => a + p.stock, 0);
+    const stockValue = products.reduce((a, p) => a + p.stock * p.price, 0);
+    const totalSold = products.reduce((a, p) => a + p.sold, 0);
+    const revenue = products.reduce((a, p) => a + p.sold * p.price, 0);
+    const low = products.filter(p => p.stock <= threshold).length;
+
+    document.getElementById("kTotalProducts").innerText = loaded ? fmtNum(products.length) : "-";
+    document.getElementById("kTotalStock").innerText = loaded ? fmtNum(totalStock) : "-";
+    document.getElementById("kStockValue").innerText = loaded ? fmtMoney(stockValue) : "-";
+    document.getElementById("kTotalSold").innerText = loaded ? fmtNum(totalSold) : "-";
+    document.getElementById("kRevenue").innerText = loaded ? fmtMoney(revenue) : "-";
+    document.getElementById("kLowStock").innerText = loaded ? fmtNum(low) : "-";
+
+    // Sales by category
+    const byCat = {};
+    products.forEach(p => {
+      byCat[p.category] = (byCat[p.category] || 0) + p.sold * p.price;
+    });
+    drawBars("categoryChart", Object.entries(byCat).sort((a, b) => b[1] - a[1]), fmtMoney);
+
+    // Top 5 products by revenue
+    const top = products
+      .map(p => ({ n: p.name, v: p.sold * p.price }))
+      .sort((a, b) => b.v - a.v)
+      .slice(0, 5)
+      .map(x => [x.n, x.v]);
+    drawBars("topChart", top, fmtMoney);
+  }
+
+  function drawBars(id, entries, fmt) {
+    const el = document.getElementById(id);
+    if (!entries.length || entries.every(e => e[1] === 0)) {
+      el.innerHTML = '<div class="empty">No data loaded.</div>';
+      return;
+    }
+    const max = Math.max(...entries.map(e => e[1])) || 1;
+    el.innerHTML = entries.map(([label, val]) => `
+      <div class="bar-row">
+        <div class="name" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${(val / max * 100).toFixed(1)}%"></div></div>
+        <div class="num">${fmt(val)}</div>
+      </div>`).join("");
+  }
+
+  function renderProducts() {
+    const el = document.getElementById("productTable");
+    if (!loaded) { el.innerHTML = '<div class="empty">No data loaded.</div>'; return; }
+    const q = document.getElementById("productSearch").value.toLowerCase();
+    const list = products.filter(p =>
+      (p.name + " " + p.sku + " " + p.category).toLowerCase().includes(q));
+    el.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>SKU</th><th>Category</th><th class="num">Price</th><th class="num">Stock</th></tr></thead>
+        <tbody>${list.map(p => `
+          <tr>
+            <td>${escapeHtml(p.name)}</td>
+            <td>${escapeHtml(p.sku)}</td>
+            <td>${escapeHtml(p.category)}</td>
+            <td class="num">${fmtMoney(p.price)}</td>
+            <td class="num">${fmtNum(p.stock)}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }
+
+  function renderStock() {
+    const el = document.getElementById("stockTable");
+    if (!loaded) { el.innerHTML = '<div class="empty">No data loaded.</div>'; return; }
+    const threshold = parseFloat(document.getElementById("lowThreshold").value) || 0;
+    const sorted = [...products].sort((a, b) => a.stock - b.stock);
+    el.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>SKU</th><th class="num">Stock</th><th class="num">Stock Value</th></tr></thead>
+        <tbody>${sorted.map(p => `
+          <tr class="${p.stock <= threshold ? "low" : ""}">
+            <td>${escapeHtml(p.name)}</td>
+            <td>${escapeHtml(p.sku)}</td>
+            <td class="num">${fmtNum(p.stock)}</td>
+            <td class="num">${fmtMoney(p.stock * p.price)}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+    renderSummary();
+  }
+
+  function renderSales() {
+    const el = document.getElementById("salesTable");
+    if (!loaded) { el.innerHTML = '<div class="empty">No data loaded.</div>'; return; }
+    const sorted = [...products].sort((a, b) => b.sold * b.price - a.sold * a.price);
+    el.innerHTML = `
+      <table>
+        <thead><tr><th>Name</th><th>Category</th><th class="num">Units Sold</th><th class="num">Price</th><th class="num">Revenue</th></tr></thead>
+        <tbody>${sorted.map(p => `
+          <tr>
+            <td>${escapeHtml(p.name)}</td>
+            <td>${escapeHtml(p.category)}</td>
+            <td class="num">${fmtNum(p.sold)}</td>
+            <td class="num">${fmtMoney(p.price)}</td>
+            <td class="num">${fmtMoney(p.sold * p.price)}</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>`;
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  document.getElementById("lowThreshold").addEventListener("input", renderStock);
+</script>
+</body>
+</html>
